@@ -3,8 +3,10 @@ import boto3
 import os
 import sys
 import threading
+import json
 
 BUCKET_NAME = "s3-object-operations-practice-examples"
+WEBSITE_BUCKET_NAME = "s3staticwebsitehostingexample"
 
 
 def s3_client():
@@ -21,6 +23,32 @@ def create_bucket(bucket_name):
     return s3_client().create_bucket(Bucket=bucket_name, CreateBucketConfiguration={
         'LocationConstraint': 'ap-south-1'
     })
+
+
+def update_bucket_policy(bucket_name):
+    bucket_policy = {
+        'Version': '2012-10-17',
+        'Statement': [
+            {
+                'Sid': 'AddPerm',
+                'Effect': 'Allow',
+                'Principal': '*',
+                'Action': [
+                    's3:DeleteObject',
+                    's3:GetObject',
+                    's3:PutObject'
+                ],
+                'Resource': 'arn:aws:s3:::' + bucket_name + '/*'
+            }
+        ]
+    }
+
+    policy_string = json.dumps(bucket_policy)
+
+    return s3_client().put_bucket_policy(
+        Bucket=bucket_name,
+        Policy=policy_string
+    )
 
 
 def upload_file(bucket_name):
@@ -83,8 +111,41 @@ def enable_versioning(bucket_name):
     })
 
 
+def host_static_website():
+    s3 = boto3.client('s3', region_name='ap-south-1')
+    """ :type : pyboto3.s3 """
+
+    s3.create_bucket(
+        Bucket=WEBSITE_BUCKET_NAME,
+        CreateBucketConfiguration={
+            'LocationConstraint': 'ap-south-1'
+        }
+    )
+
+    update_bucket_policy(WEBSITE_BUCKET_NAME)
+
+    website_configuration = {
+        'ErrorDocument': {'Key': 'error.html'},
+        'IndexDocument': {'Suffix': 'index.html'}
+    }
+
+    s3_client().put_bucket_website(
+        Bucket=WEBSITE_BUCKET_NAME,
+        WebsiteConfiguration=website_configuration
+    )
+
+    index_file = os.path.dirname(__file__) + '/index.html'
+    error_file = os.path.dirname(__file__) + '/error.html'
+
+    s3_client().put_object(Bucket=WEBSITE_BUCKET_NAME, ACL='public-read', Key='index.html',
+                           Body=open(index_file).read(), ContentType='text/html')
+    s3_client().put_object(Bucket=WEBSITE_BUCKET_NAME, ACL='public-read', Key='error.html',
+                           Body=open(error_file).read(), ContentType='text/html')
+
+
 # create_bucket(BUCKET_NAME)
 # upload_file(BUCKET_NAME)
 # upload_large_file(BUCKET_NAME)
 # multipart_download_boto3(BUCKET_NAME)
 # enable_versioning(BUCKET_NAME)
+host_static_website()
