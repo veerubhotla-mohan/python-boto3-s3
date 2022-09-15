@@ -148,4 +148,4 @@ def host_static_website():
 # upload_large_file(BUCKET_NAME)
 # multipart_download_boto3(BUCKET_NAME)
 # enable_versioning(BUCKET_NAME)
-host_static_website()
+# host_static_website()
